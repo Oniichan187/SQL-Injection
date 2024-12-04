@@ -27,11 +27,19 @@ components:
     name: label_1
     properties: {text: SQL Injection output, visible: true}
     type: Label
-  - event_bindings: {pressed_enter: text_box_1_pressed_enter}
-    layout_properties: {grid_position: 'FMVCXZ,PLISME'}
+  - layout_properties: {grid_position: 'FSKENG,ISNVQX'}
     name: text_box_1
-    properties: {enabled: false}
-    type: TextBox
+    properties: {}
+    type: Label
+  - event_bindings: {click: button_login_click_click}
+    layout_properties: {grid_position: 'HAANJL,EJOXTC'}
+    name: handle_login_click
+    properties: {text: Log in}
+    type: Button
+  - layout_properties: {grid_position: 'LMFVDR,CKOEBA'}
+    name: button_1
+    properties: {text: Ausloggen}
+    type: Button
   layout_properties: {slot: default}
   name: content_panel
   properties: {col_widths: '{"VMEJWY":35,"JMUSPY":25,"QTWPAJ":10,"WXBTUG":50,"KZOOQB":10,"CAZAUD":50}', visible: true}

@@ -16,8 +16,8 @@ db_schema:
     server: full
     title: Files
 dependencies: []
-name: Clone of SQL Injection
-package_name: SQL_Injection
+name: SQL Injection 2.0
+package_name: SQL_Injection_2_0
 renamed: true
 runtime_options:
   client_version: '3'
