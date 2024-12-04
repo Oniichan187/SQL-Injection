@@ -1,0 +1,35 @@
+allow_embedding: false
+correct_dependency_ids: {}
+db_schema:
+  files:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: path
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: file
+      type: media
+    - admin_ui: {order: 2, width: 200}
+      name: file_version
+      type: string
+    server: full
+    title: Files
+dependencies: []
+name: Clone of SQL Injection
+package_name: SQL_Injection
+renamed: true
+runtime_options:
+  client_version: '3'
+  server_spec: {base: python310-minimal}
+  server_version: python3-sandbox
+  version: 2
+services:
+- client_config: {}
+  server_config: {}
+  source: /runtime/services/tables.yml
+- client_config: {}
+  server_config: {}
+  source: /runtime/services/anvil/files.yml
+startup: {module: Start, type: form}
+startup_form: null
