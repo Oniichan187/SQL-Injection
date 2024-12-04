@@ -7,7 +7,7 @@ import anvil.server
 import sqlite3
 
 def get_db_connection():
-    conn = sqlite3.connect('bank_transactions.db') 
+    conn = sqlite3.connect(data_files['bank_transactions.db']) 
     return conn
 
 @anvil.server.callable
