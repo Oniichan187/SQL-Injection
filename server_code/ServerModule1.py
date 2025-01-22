@@ -7,7 +7,7 @@ import anvil.server
 import sqlite3
 
 def get_db_connection():
-    conn = sqlite3.connect(data_files['bank_transactions.db']) 
+    conn = sqlite3.connect(data_files['bank_transactions.db'])
     return conn
 
 @anvil.server.callable
@@ -15,6 +15,7 @@ def safe_login(username, password):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Sicheres Statement mit Platzhaltern
         cursor.execute("SELECT * FROM User WHERE Email = ? AND Password = ?", (username, password))
         user = cursor.fetchone()
         if user:
@@ -31,6 +32,7 @@ def vulnerable_login(username, password):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Verletzliches Statement ohne Platzhalter
         query = f"SELECT * FROM User WHERE Email = '{username}' AND Password = '{password}'"
         cursor.execute(query)
         user = cursor.fetchone()
