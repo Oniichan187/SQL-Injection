@@ -22,12 +22,11 @@ components:
     name: Input_Password
     properties: {hide_text: false}
     type: TextBox
-  - event_bindings: {change: check_box_1_change}
-    layout_properties: {grid_position: 'CYQXSE,JMUSPY AQLFQI,IIAPOB'}
-    name: Checkbox_SQL
-    properties: {text: SQL Injection möglich}
-    type: CheckBox
-  - layout_properties: {grid_position: 'CYQXSE,JMUSPY HJARXG,GRIRDI'}
+  - layout_properties: {grid_position: 'CYQXSE,JMUSPY IHARBU,UDTOTR'}
+    name: label_4
+    properties: {text: 'SQL Injection Level:'}
+    type: Label
+  - layout_properties: {grid_position: 'CYQXSE,JMUSPY'}
     name: Dropdown_SQL
     properties: {}
     type: DropDown

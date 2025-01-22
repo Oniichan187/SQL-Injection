@@ -2,6 +2,7 @@ import sqlite3
 import anvil.server
 from anvil.files import data_files
 from datetime import datetime
+import hashlib  # Nur für das Hashing-Beispiel (Level 3)
 
 def get_db_connection():
     """
@@ -26,40 +27,16 @@ def get_other_users(current_user_id):
         conn.close()
 
 @anvil.server.callable
-def safe_login(username, password):
-    """
-    Sicherer Login mit Parameter-Bindung (verhindert SQL-Injection).
-    Liefert (success, message, user_name, balance, transactions_str, user_id).
-    """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT * FROM User WHERE Email = ? AND Password = ?", (username, password))
-        user = cursor.fetchone()
-        if user:
-            user_id   = user[0]
-            user_name = user[1]
-            balance   = user[4]
-
-            transactions_str = get_user_transactions(cursor, user_id)
-
-            return (True, "Login erfolgreich", user_name, balance, transactions_str, user_id)
-        else:
-            return (False, "Ungültige Anmeldedaten", None, None, None, None)
-    except Exception as e:
-        return (False, str(e), None, None, None, None)
-    finally:
-        conn.close()
-
-@anvil.server.callable
 def unsafe_login(username, password):
     """
-    *Unsicherer* Login ohne Parameter-Bindung: Anfällig für SQL-Injection!
-    Liefert (success, message, user_name, balance, transactions_str, user_id).
+    Level 1: Keine Absicherung (unsicher).
+    Hier werden die Userdaten direkt in den SQL-String eingesetzt.
+    Extrem anfällig für SQL-Injection.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Beispiel für anfälliges Query
         query = f"SELECT * FROM User WHERE Email = '{username}' AND Password = '{password}'"
         cursor.execute(query)
         user = cursor.fetchone()
@@ -71,7 +48,73 @@ def unsafe_login(username, password):
             transactions_str = get_user_transactions(cursor, user_id)
             return (True, "Unsicherer Login erfolgreich", user_name, balance, transactions_str, user_id)
         else:
-            return (False, "Ungültige Anmeldedaten", None, None, None, None)
+            return (False, "Ungültige Anmeldedaten (Level 1)", None, None, None, None)
+    except Exception as e:
+        return (False, str(e), None, None, None, None)
+    finally:
+        conn.close()
+
+@anvil.server.callable
+def safe_login(username, password):
+    """
+    Level 2: Parametrisierte Queries (sicherer gegen SQL-Injection),
+    aber die Passwörter liegen noch unverschlüsselt in der DB.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Parameter-Bindung verhindert einfache SQL-Injection
+        cursor.execute("SELECT * FROM User WHERE Email = ? AND Password = ?", (username, password))
+        user = cursor.fetchone()
+        if user:
+            user_id   = user[0]
+            user_name = user[1]
+            balance   = user[4]
+
+            transactions_str = get_user_transactions(cursor, user_id)
+            return (True, "Login erfolgreich (Level 2)", user_name, balance, transactions_str, user_id)
+        else:
+            return (False, "Ungültige Anmeldedaten (Level 2)", None, None, None, None)
+    except Exception as e:
+        return (False, str(e), None, None, None, None)
+    finally:
+        conn.close()
+
+@anvil.server.callable
+def hashed_login(username, password):
+    """
+    Level 3: Parametrisierte Queries + Passwort-Hashing.
+    Hier werden Passwörter in der DB nur als Hash gespeichert (z.B. SHA256).
+    (In Wirklichkeit solltest du bcrypt / argon2 / pbkdf2 mit Salt nutzen!)
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Zuerst den Datensatz anhand der Email holen (parametrisierte Query)
+        cursor.execute("SELECT * FROM User WHERE Email = ?", (username,))
+        user = cursor.fetchone()
+        if not user:
+            return (False, "Ungültige Anmeldedaten (Level 3)", None, None, None, None)
+
+        # user = (UID, Name, Email, Age, Balance, IBAN, PasswordHash)
+        # wir nehmen an, dass in 'Password' jetzt der Hash liegt
+        user_id         = user[0]
+        user_name       = user[1]
+        stored_hash     = user[6]  # Angenommen: Spalte 7 = gehashte Password
+        balance         = user[4]
+
+        # Den SHA256-Hash des eingegebenen Passworts berechnen
+        # In echt: bcrypt etc.
+        entered_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+
+        # Vergleichen mit dem gespeicherten Hash
+        if entered_hash == stored_hash:
+            # Login ok
+            transactions_str = get_user_transactions(cursor, user_id)
+            return (True, "Login erfolgreich (Level 3: Hash)", user_name, balance, transactions_str, user_id)
+        else:
+            return (False, "Passwort falsch (Level 3)", None, None, None, None)
+
     except Exception as e:
         return (False, str(e), None, None, None, None)
     finally:
@@ -102,14 +145,7 @@ def get_user_transactions(cursor, user_id):
 @anvil.server.callable
 def transfer_money(sender_id, receiver_id, amount):
     """
-    Führt eine Überweisung durch:
-      1) Prüft Sender-Guthaben
-      2) Zieht Betrag vom Sender ab, addiert beim Empfänger
-      3) Legt neuen Eintrag in Transactions an
-      4) Je einen Eintrag in User_Transactions (Sender, Receiver)
-      5) Gibt aktualisierten Kontostand des Senders + neue Transaktionsliste zurück.
-
-    Liefert (success, msg, new_sender_balance, updated_transactions_str).
+    Führt eine Überweisung durch, aktualisiert Kontostände + Transaktionstabellen.
     """
     if amount <= 0:
         return (False, "Betrag muss positiv sein!", None, None)
@@ -143,7 +179,6 @@ def transfer_money(sender_id, receiver_id, amount):
         new_sender_balance = sender_balance - amount
         new_receiver_balance = receiver_balance + amount
 
-        # In DB schreiben
         cursor.execute("UPDATE User SET Balance = ? WHERE UID = ?", (new_sender_balance, sender_id))
         cursor.execute("UPDATE User SET Balance = ? WHERE UID = ?", (new_receiver_balance, receiver_id))
 
@@ -155,13 +190,13 @@ def transfer_money(sender_id, receiver_id, amount):
         """, (now_str, sender_iban, receiver_iban, amount))
         transaction_id = cursor.lastrowid
 
-        # User_Transactions-Eintrag für Sender
+        # Eintrag in User_Transactions (Sender)
         cursor.execute("""
             INSERT INTO User_Transactions (UserID, TransactionID, Role)
             VALUES (?, ?, 'Sender')
         """, (sender_id, transaction_id))
 
-        # User_Transactions-Eintrag für Empfänger
+        # Eintrag in User_Transactions (Empfänger)
         cursor.execute("""
             INSERT INTO User_Transactions (UserID, TransactionID, Role)
             VALUES (?, ?, 'Receiver')

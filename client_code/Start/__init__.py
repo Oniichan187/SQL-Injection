@@ -7,6 +7,14 @@ class Start(StartTemplate):
         # Standard-Initialisierung
         self.init_components(**properties)
         
+        # Dropdown_SQL mit den 3 Level füllen (kannst du auch im Designer machen)
+        self.Dropdown_SQL.items = [
+            "Level 1",  # Unsicher
+            "Level 2",  # Parameter
+            "Level 3",  # Parameter + Hash
+        ]
+        self.Dropdown_SQL.selected_value = "Level 1"  # Standard: Unsicher
+
         # Speichert die UserID des aktuell eingeloggten Nutzers
         self.current_user_id = None
         
@@ -16,16 +24,11 @@ class Start(StartTemplate):
         # FlowPanel soll anfangs unsichtbar sein
         self.flow_panel_transaktion.visible = False
 
-        # Variablen für Suche/Transaktionen
-        # -> Du könntest hier bei Bedarf self.all_transactions = [] haben,
-        #   wenn du lokal filtern willst. Aktuell speichern wir Transaktionen
-        #   direkt in self.text_box_1.text und filtern dort.
-        
         self.reset_to_start()
 
     def reset_to_start(self):
         """Setzt die UI in den Ausgangszustand (z.B. nach Logout)."""
-        self.label_2.text = "Bank"  
+        self.label_2.text = "Bank"
         self.handle_login_click.text = "Login"
         self.text_box_1.visible = False
         self.text_box_1.text = ""
@@ -53,16 +56,25 @@ class Start(StartTemplate):
             username = self.Input_User.text
             password = self.Input_Password.text
 
-            # Prüfe, ob Checkbox_SQL gesetzt ist
-            if hasattr(self, "Checkbox_SQL") and self.Checkbox_SQL.checked:
-                # UNSICHERER Login (verletzlich für SQL-Injection)
+            # Ausgewähltes Level im Dropdown
+            selected_level = self.Dropdown_SQL.selected_value
+
+            if selected_level == "Level 1":
+                # Level 1: UNSICHERER Login
                 success, message, user_name, balance, transactions_str, user_id = anvil.server.call(
                     'unsafe_login', username, password
                 )
-            else:
-                # SICHERER Login
+
+            elif selected_level == "Level 2":
+                # Level 2: Parametergebunden (aber Klartext-Passwort in DB)
                 success, message, user_name, balance, transactions_str, user_id = anvil.server.call(
                     'safe_login', username, password
+                )
+
+            else:  # Level 3
+                # Level 3: Parametergebunden + Passwort als Hash
+                success, message, user_name, balance, transactions_str, user_id = anvil.server.call(
+                    'hashed_login', username, password
                 )
 
             if success:
@@ -91,7 +103,6 @@ class Start(StartTemplate):
 
                 # Empfänger-Liste in Dropdown laden
                 users_list = anvil.server.call('get_other_users', user_id)
-                # Format: [(Name, UID), ...]
                 self.drop_down_1.items = users_list
 
             else:
@@ -101,28 +112,18 @@ class Start(StartTemplate):
             # Logout
             self.reset_to_start()
 
-    def check_box_1_change(self, **event_args):
-        """Wenn sich die Checkbox ändert (optional)."""
-        pass
-
     def Input_User_pressed_enter(self, **event_args):
-        """
-        Wird aufgerufen, wenn der User in 'Input_User' Enter drückt.
-        -> Hier implementieren wir eine einfache Suche in text_box_1.text
-        """
+        """Suche in den angezeigten Transaktionen (einfaches Filtern)."""
         if self.Lable_User.text == "Suche:":
-            # Suchbegriff
             search_text = self.Input_User.text.lower().strip()
             lines = self.text_box_1.text.split("\n")
             
-            # Filtern
             filtered = [l for l in lines if search_text in l.lower()]
             self.text_box_1.text = "\n".join(filtered)
             
             self.Input_User.text = ""
 
     def Input_Password_pressed_enter(self, **event_args):
-        """Wenn Enter in 'Input_Password' gedrückt wird."""
         pass
 
     def make_transaktion_click(self, **event_args):
