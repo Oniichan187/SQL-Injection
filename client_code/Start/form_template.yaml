@@ -6,7 +6,7 @@ components:
     type: Label
   - layout_properties: {grid_position: 'CYQXSE,VMEJWY UOCGFL,KZOOQB'}
     name: Lable_User
-    properties: {text: 'Benuzername:', visible: true}
+    properties: {font: '', font_size: 16, text: 'Benuzername:', visible: true}
     type: Label
   - event_bindings: {pressed_enter: Input_User_pressed_enter}
     layout_properties: {grid_position: 'CYQXSE,VMEJWY UOCGFL,CAZAUD'}
@@ -15,7 +15,7 @@ components:
     type: TextBox
   - layout_properties: {grid_position: 'CYQXSE,VMEJWY WTPMMX,QTWPAJ'}
     name: Label_Password
-    properties: {text: 'Passwort:'}
+    properties: {font_size: 16, text: 'Passwort:'}
     type: Label
   - event_bindings: {pressed_enter: Input_Password_pressed_enter}
     layout_properties: {grid_position: 'CYQXSE,VMEJWY WTPMMX,WXBTUG'}
@@ -24,7 +24,7 @@ components:
     type: TextBox
   - layout_properties: {grid_position: 'CYQXSE,JMUSPY IHARBU,UDTOTR'}
     name: label_4
-    properties: {text: 'SQL Injection Level:'}
+    properties: {font_size: 16, text: 'SQL Injection Level:'}
     type: Label
   - layout_properties: {grid_position: 'CYQXSE,JMUSPY'}
     name: Dropdown_SQL
@@ -37,7 +37,7 @@ components:
   - components:
     - layout_properties: {}
       name: label_1
-      properties: {text: 'Transaktion an:'}
+      properties: {font_size: 16, text: 'Transaktion an:'}
       type: Label
     - layout_properties: {width: 289}
       name: drop_down_1
@@ -45,7 +45,7 @@ components:
       type: DropDown
     - layout_properties: {}
       name: label_3
-      properties: {text: 'Betrag:'}
+      properties: {font_size: 16, text: 'Betrag:'}
       type: Label
     - layout_properties: {width: 323}
       name: text_box_betrag
@@ -54,7 +54,7 @@ components:
     - event_bindings: {click: make_transaktion_click}
       layout_properties: {}
       name: make_transaktion
-      properties: {text: Buchen}
+      properties: {font_size: 16, text: Buchen}
       type: Button
     layout_properties: {grid_position: 'NGNXII,CKKLIN'}
     name: flow_panel_transaktion
@@ -63,7 +63,7 @@ components:
   - event_bindings: {click: button_login_click_click}
     layout_properties: {grid_position: 'HAANJL,EJOXTC'}
     name: handle_login_click
-    properties: {text: Log in}
+    properties: {font_size: 16, text: Log in}
     type: Button
   layout_properties: {slot: default}
   name: content_panel
