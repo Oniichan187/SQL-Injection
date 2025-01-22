@@ -9,7 +9,7 @@ class Start(StartTemplate):
     def __init__(self, **properties):
         self.init_components(**properties)
 
-        # Textbox zu Beginn unsichtbar machen
+        # Textbox zu Beginn verstecken
         self.text_box_1.visible = False
         self.text_box_1.text = ""
 
@@ -22,13 +22,13 @@ class Start(StartTemplate):
             # Sicherer Login
             success, message = anvil.server.call('safe_login', username, password)
             if success:
-                self.text_box_1.text = "Anmeldung erfolgreich!"
+                self.text_box_1.text = f"Anmeldung erfolgreich!\n\n{message}"
                 self.text_box_1.foreground = "green"
             else:
                 self.text_box_1.text = f"Anmeldung fehlgeschlagen: {message}"
                 self.text_box_1.foreground = "red"
         else:
-            # Verletzlicher Login
+            # Verletzlicher Login (mit SQL-Injection-Möglichkeit)
             injection_result = anvil.server.call('vulnerable_login', username, password)
             self.text_box_1.text = injection_result
 
@@ -45,3 +45,7 @@ class Start(StartTemplate):
 
     def check_box_1_change(self, **event_args):
         pass
+
+    def button_1_click(self, **event_args):
+      """This method is called when the button is clicked"""
+      pass
