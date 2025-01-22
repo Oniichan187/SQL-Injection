@@ -4,21 +4,23 @@ from anvil.files import data_files
 from datetime import datetime
 
 def get_db_connection():
-    conn = sqlite3.connect(data_files['bank_transactions.db'])
-    return conn
+    """
+    Gibt eine DB-Verbindung zurück. 'bank_transactions.db' muss als
+    Data-File in Anvil hinterlegt sein.
+    """
+    return sqlite3.connect(data_files['bank_transactions.db'])
 
 @anvil.server.callable
 def get_other_users(current_user_id):
     """
-    Liefert eine Liste mit allen anderen Nutzern (UID != current_user_id).
-    Format: [(Name, UID), (Name2, UID2), ...]
+    Liefert eine Liste aller anderen User (UID != current_user_id).
+    Format für Anvil-Dropdown: [(Name, UID), (Name2, UID2), ...].
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("SELECT UID, Name FROM User WHERE UID != ?", (current_user_id,))
         rows = cursor.fetchall()
-        # Umbauen auf [(Name, UID), ...], denn in Anvil-Dropdown kann .items = [(label, value), ...]
         return [(row[1], row[0]) for row in rows]
     finally:
         conn.close()
@@ -26,26 +28,21 @@ def get_other_users(current_user_id):
 @anvil.server.callable
 def safe_login(username, password):
     """
-    Sicherer Login via Parameter-Bindung (verhindert SQL-Injection).
-    Gibt zusätzlich die UID des Nutzers zurück.
+    Sicherer Login mit Parameter-Bindung (verhindert SQL-Injection).
+    Liefert (success, message, user_name, balance, transactions_str, user_id).
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            "SELECT * FROM User WHERE Email = ? AND Password = ?",
-            (username, password)
-        )
+        cursor.execute("SELECT * FROM User WHERE Email = ? AND Password = ?", (username, password))
         user = cursor.fetchone()
         if user:
-            # user = (UID, Name, Email, Age, Balance, IBAN, Password)
             user_id   = user[0]
-            user_name = user[1]  
+            user_name = user[1]
             balance   = user[4]
-            
-            # Transaktionen abrufen
+
             transactions_str = get_user_transactions(cursor, user_id)
-            
+
             return (True, "Login erfolgreich", user_name, balance, transactions_str, user_id)
         else:
             return (False, "Ungültige Anmeldedaten", None, None, None, None)
@@ -57,9 +54,8 @@ def safe_login(username, password):
 @anvil.server.callable
 def unsafe_login(username, password):
     """
-    *Unsicherer* Login OHNE Parameter-Bindung (verwundbar für SQL-Injection!).
-    Hier kann man z.B. als Benutzernamen `anything%' OR '1'='1` testen.
-    Gibt zusätzlich die UID des Nutzers zurück.
+    *Unsicherer* Login ohne Parameter-Bindung: Anfällig für SQL-Injection!
+    Liefert (success, message, user_name, balance, transactions_str, user_id).
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -75,7 +71,7 @@ def unsafe_login(username, password):
             transactions_str = get_user_transactions(cursor, user_id)
             return (True, "Unsicherer Login erfolgreich", user_name, balance, transactions_str, user_id)
         else:
-            return (False, "Ungültige Anmeldedaten (unsicherer Login)", None, None, None, None)
+            return (False, "Ungültige Anmeldedaten", None, None, None, None)
     except Exception as e:
         return (False, str(e), None, None, None, None)
     finally:
@@ -83,8 +79,7 @@ def unsafe_login(username, password):
 
 def get_user_transactions(cursor, user_id):
     """
-    Hilfsfunktion, um alle Transaktionen eines Nutzers zu formatieren.
-    Gibt den formatierten String zurück.
+    Liest alle Transaktionen eines Nutzers aus und formatiert sie als String.
     """
     cursor.execute("""
         SELECT t.Date,
@@ -97,23 +92,24 @@ def get_user_transactions(cursor, user_id):
         JOIN User_Transactions ut ON t.TransactionID = ut.TransactionID
         WHERE ut.UserID = ?
     """, (user_id,))
-    transactions = cursor.fetchall()
+    rows = cursor.fetchall()
 
-    formatted_transactions = "\n".join([
-        f"{date} | {sender} -> {receiver} | {amount:.2f} EUR"
-        for date, sender, receiver, amount in transactions
+    return "\n".join([
+        f"{row[0]} | {row[1]} -> {row[2]} | {row[3]:.2f} EUR"
+        for row in rows
     ])
-    return formatted_transactions
-
 
 @anvil.server.callable
 def transfer_money(sender_id, receiver_id, amount):
     """
     Führt eine Überweisung durch:
-    - Prüft Guthaben des Senders
-    - Zieht Betrag ab / Fügt Betrag beim Empfänger hinzu
-    - Legt einen Eintrag in Tabelle Transactions + User_Transactions an
-    - Gibt (success, msg, new_balance, updated_transactions_str) zurück
+      1) Prüft Sender-Guthaben
+      2) Zieht Betrag vom Sender ab, addiert beim Empfänger
+      3) Legt neuen Eintrag in Transactions an
+      4) Je einen Eintrag in User_Transactions (Sender, Receiver)
+      5) Gibt aktualisierten Kontostand des Senders + neue Transaktionsliste zurück.
+
+    Liefert (success, msg, new_sender_balance, updated_transactions_str).
     """
     if amount <= 0:
         return (False, "Betrag muss positiv sein!", None, None)
@@ -121,35 +117,37 @@ def transfer_money(sender_id, receiver_id, amount):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # 1) Hol die Daten von Sender und Empfänger
+        # Daten vom Sender holen
         cursor.execute("SELECT UID, Balance, IBAN FROM User WHERE UID = ?", (sender_id,))
-        sender_user = cursor.fetchone()
-        if not sender_user:
+        sender = cursor.fetchone()
+        if not sender:
             return (False, "Sender nicht gefunden!", None, None)
         
-        sender_balance = sender_user[1]
-        sender_iban    = sender_user[2]
+        sender_balance = sender[1]
+        sender_iban    = sender[2]
 
+        # Daten vom Empfänger holen
         cursor.execute("SELECT UID, Balance, IBAN FROM User WHERE UID = ?", (receiver_id,))
-        receiver_user = cursor.fetchone()
-        if not receiver_user:
+        receiver = cursor.fetchone()
+        if not receiver:
             return (False, "Empfänger nicht gefunden!", None, None)
         
-        receiver_balance = receiver_user[1]
-        receiver_iban    = receiver_user[2]
+        receiver_balance = receiver[1]
+        receiver_iban    = receiver[2]
 
-        # 2) Prüfen, ob Sender genug Guthaben hat
+        # Prüfen, ob Sender genügend Guthaben hat
         if sender_balance < amount:
-            return (False, f"Unzureichendes Guthaben (verfügbar: {sender_balance:.2f} EUR)!", None, None)
-        
-        # 3) Kontostände aktualisieren
-        new_sender_balance   = sender_balance - amount
+            return (False, f"Unzureichendes Guthaben: {sender_balance:.2f} EUR", None, None)
+
+        # Guthaben aktualisieren
+        new_sender_balance = sender_balance - amount
         new_receiver_balance = receiver_balance + amount
 
+        # In DB schreiben
         cursor.execute("UPDATE User SET Balance = ? WHERE UID = ?", (new_sender_balance, sender_id))
         cursor.execute("UPDATE User SET Balance = ? WHERE UID = ?", (new_receiver_balance, receiver_id))
 
-        # 4) Neue Transaktion anlegen
+        # Neue Transaktion anlegen (Tabelle Transactions)
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute("""
             INSERT INTO Transactions (Date, SenderIBAN, ReceiverIBAN, Amount)
@@ -157,13 +155,13 @@ def transfer_money(sender_id, receiver_id, amount):
         """, (now_str, sender_iban, receiver_iban, amount))
         transaction_id = cursor.lastrowid
 
-        # 5) Einträge in User_Transactions
-        #    Sender hat Rolle = 'Sender', Empfänger hat Rolle = 'Receiver'
+        # User_Transactions-Eintrag für Sender
         cursor.execute("""
             INSERT INTO User_Transactions (UserID, TransactionID, Role)
             VALUES (?, ?, 'Sender')
         """, (sender_id, transaction_id))
 
+        # User_Transactions-Eintrag für Empfänger
         cursor.execute("""
             INSERT INTO User_Transactions (UserID, TransactionID, Role)
             VALUES (?, ?, 'Receiver')
@@ -171,10 +169,11 @@ def transfer_money(sender_id, receiver_id, amount):
 
         conn.commit()
 
-        # 6) Aktuellen Kontostand vom Sender zurückgeben + aktualisierte Transaktionen
+        # Aktualisierte Transaktionen des Senders
         updated_transactions_str = get_user_transactions(cursor, sender_id)
-        
+
         return (True, "Überweisung erfolgreich", new_sender_balance, updated_transactions_str)
+
     except Exception as e:
         conn.rollback()
         return (False, str(e), None, None)

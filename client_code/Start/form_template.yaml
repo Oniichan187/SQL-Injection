@@ -48,7 +48,8 @@ components:
       name: text_box_betrag
       properties: {}
       type: TextBox
-    - layout_properties: {}
+    - event_bindings: {click: make_transaktion_click}
+      layout_properties: {}
       name: make_transaktion
       properties: {text: Buchen}
       type: Button

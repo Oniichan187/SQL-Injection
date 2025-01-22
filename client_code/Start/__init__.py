@@ -4,22 +4,29 @@ import anvil.server
 
 class Start(StartTemplate):
     def __init__(self, **properties):
+        # Standard-Initialisierung
         self.init_components(**properties)
-
-        # Hier speichern wir die UserID des eingeloggten Nutzers
+        
+        # Speichert die UserID des aktuell eingeloggten Nutzers
         self.current_user_id = None
+        
+        # (Optional) Placeholder für den Betrag
+        self.text_box_betrag.placeholder = "z.B. 100.50"
 
-        # Hier speichern wir die Liste mit allen Transaktionen (Strings) für die Suche
-        self.all_transactions = []
-
-        # Das FlowPanel für Transaktionen (Dropdown/Betrag/Button) soll erst unsichtbar sein
+        # FlowPanel soll anfangs unsichtbar sein
         self.flow_panel_transaktion.visible = False
+
+        # Variablen für Suche/Transaktionen
+        # -> Du könntest hier bei Bedarf self.all_transactions = [] haben,
+        #   wenn du lokal filtern willst. Aktuell speichern wir Transaktionen
+        #   direkt in self.text_box_1.text und filtern dort.
         
         self.reset_to_start()
 
     def reset_to_start(self):
-        self.label_2.text = "Bank"  # Standardtext für label_2
-        self.handle_login_click.text = "Login"  # Button zurück auf Login
+        """Setzt die UI in den Ausgangszustand (z.B. nach Logout)."""
+        self.label_2.text = "Bank"  
+        self.handle_login_click.text = "Login"
         self.text_box_1.visible = False
         self.text_box_1.text = ""
         self.Input_User.placeholder = "Benutzername"
@@ -28,31 +35,27 @@ class Start(StartTemplate):
         self.Input_User.text = ""
         self.Input_Password.text = ""
 
-        # Eingabefelder sichtbar machen
         self.Label_Password.visible = True
         self.Input_Password.visible = True
 
-        # FlowPanel für Transaktionen unsichtbar machen
+        # FlowPanel für Transaktionen unsichtbar
         self.flow_panel_transaktion.visible = False
 
-        # Zur Sicherheit auch den Dropdown und Betrag zurücksetzen
+        # Dropdown leeren, Betrag zurücksetzen
         self.drop_down_1.items = []
         self.text_box_betrag.text = ""
 
-        # Keine aktive UserID
         self.current_user_id = None
 
-        # Leeren wir die gespeicherten Transaktionen
-        self.all_transactions = []
-
     def button_login_click_click(self, **event_args):
+        """Wird aufgerufen, wenn der Login-Button geklickt wird."""
         if self.handle_login_click.text == "Login":
             username = self.Input_User.text
             password = self.Input_Password.text
 
-            # Unterscheide, ob "Checkbox_SQL" (unsicherer Login) gesetzt ist
+            # Prüfe, ob Checkbox_SQL gesetzt ist
             if hasattr(self, "Checkbox_SQL") and self.Checkbox_SQL.checked:
-                # UNSICHERER Login mit SQL-Injection
+                # UNSICHERER Login (verletzlich für SQL-Injection)
                 success, message, user_name, balance, transactions_str, user_id = anvil.server.call(
                     'unsafe_login', username, password
                 )
@@ -64,118 +67,110 @@ class Start(StartTemplate):
 
             if success:
                 # Login erfolgreich
-                self.current_user_id = user_id  # Speichere unsere UserID
+                self.current_user_id = user_id
                 self.label_2.text = f"{user_name} - Kontostand: {balance:.2f} EUR"
-
-                # Transaktionen in self.all_transactions zwischenspeichern
-                self.all_transactions = transactions_str.split("\n") if transactions_str else []
                 
-                # Alle Transaktionen anzeigen
+                # Transaktionen in text_box_1 anzeigen
                 self.text_box_1.text = transactions_str
                 self.text_box_1.visible = True
-                
-                # Suche/Placeholder
+
+                # Suche
                 self.Lable_User.text = "Suche:"
                 self.Input_User.placeholder = "Tippe Suchbegriff und drücke Enter"
                 self.Input_User.text = ""
-                
-                # Eingabefelder für Passwort ausblenden
+
+                # Verstecke Passwort-Felder
                 self.Label_Password.visible = False
                 self.Input_Password.visible = False
-                
-                # Button auf Logout ändern
+
+                # Button-Text auf Logout
                 self.handle_login_click.text = "Logout"
 
-                # FlowPanel für Transaktionen einblenden
+                # FlowPanel für Transaktion anzeigen
                 self.flow_panel_transaktion.visible = True
 
-                # Dropdown mit anderen Nutzern füllen (Empfänger)
+                # Empfänger-Liste in Dropdown laden
                 users_list = anvil.server.call('get_other_users', user_id)
-                # Erwartetes Format: [(EmpfaengerName, EmpfaengerID), (EmpfaengerName, EmpfaengerID), ...]
+                # Format: [(Name, UID), ...]
                 self.drop_down_1.items = users_list
 
             else:
                 alert(message, title="Fehler")
+
         else:
-            # Logout durchführen
+            # Logout
             self.reset_to_start()
-    
 
     def check_box_1_change(self, **event_args):
-        """Nur ein Platzhalter-Event, falls du mit Checkbox etwas tun willst."""
+        """Wenn sich die Checkbox ändert (optional)."""
         pass
 
     def Input_User_pressed_enter(self, **event_args):
         """
-        Wird aufgerufen, wenn der Nutzer in 'Input_User' Enter drückt.
-        Nach dem Login interpretieren wir 'Input_User' als Suchfeld.
+        Wird aufgerufen, wenn der User in 'Input_User' Enter drückt.
+        -> Hier implementieren wir eine einfache Suche in text_box_1.text
         """
         if self.Lable_User.text == "Suche:":
+            # Suchbegriff
             search_text = self.Input_User.text.lower().strip()
+            lines = self.text_box_1.text.split("\n")
             
-            # Filtern der Transaktionszeilen
-            filtered_transactions = [
-                line for line in self.all_transactions
-                if search_text in line.lower()
-            ]
+            # Filtern
+            filtered = [l for l in lines if search_text in l.lower()]
+            self.text_box_1.text = "\n".join(filtered)
             
-            # Gefilterte Zeilen anzeigen
-            self.text_box_1.text = "\n".join(filtered_transactions)
-            
-            # Suchfeld leeren
             self.Input_User.text = ""
 
     def Input_Password_pressed_enter(self, **event_args):
-        """Wird aufgerufen, wenn der Nutzer in 'Input_Password' Enter drückt."""
+        """Wenn Enter in 'Input_Password' gedrückt wird."""
         pass
 
-    def button_ueberweisen_click(self, **event_args):
+    def make_transaktion_click(self, **event_args):
         """
-        Diese Methode führt den Transfer aus, wenn auf den Button geklickt wird.
+        Button, um eine Buchung (Überweisung) auszulösen.
+        Aktualisiert Kontostände & Transaktionsliste.
         """
         if not self.current_user_id:
             alert("Bitte erst einloggen!")
             return
 
-        # Ausgewählter Empfänger
-        selected = self.drop_down_1.selected_value
-        if not selected:
-            alert("Bitte Empfänger auswählen!")
+        # Empfänger-ID aus dem Dropdown
+        receiver_id = self.drop_down_1.selected_value
+        if not receiver_id:
+            alert("Bitte einen Empfänger auswählen!")
             return
-        
-        # selected = EmpfaengerID (weil wir .items = [(Name, ID), ...] gesetzt haben)
-        receiver_id = selected
 
-        # Betrag einlesen
+        # Betrag aus der Textbox
         betrag_str = self.text_box_betrag.text.strip()
         if not betrag_str:
             alert("Bitte einen Betrag eingeben!")
             return
 
-        # Versuch, Betrag in float zu konvertieren
+        # Betrag in float umwandeln
         try:
             betrag = float(betrag_str)
         except ValueError:
-            alert("Ungültiger Betrag. Bitte eine Zahl eingeben.")
+            alert("Ungültiger Betrag. Bitte eine Zahl eingeben (z.B. 100.50).")
             return
 
-        # Serveraufruf: transfer_money
-        success, msg, new_balance, updated_transactions_str = anvil.server.call(
-            'transfer_money', 
-            self.current_user_id, 
-            receiver_id, 
+        success, msg, new_balance, updated_transactions = anvil.server.call(
+            'transfer_money',
+            self.current_user_id,
+            receiver_id,
             betrag
         )
+
         if success:
             alert("Überweisung erfolgreich!")
-            # Kontostand und Transaktionen updaten
-            self.label_2.text = self.label_2.text.split(" - ")[0] + f" - Kontostand: {new_balance:.2f} EUR"
             
-            # Neue Transaktionen speichern & anzeigen
-            self.all_transactions = updated_transactions_str.split("\n") if updated_transactions_str else []
-            self.text_box_1.text = updated_transactions_str
+            # Kontostand aktualisieren
+            name_part = self.label_2.text.split(" - ")[0]
+            self.label_2.text = f"{name_part} - Kontostand: {new_balance:.2f} EUR"
 
-            # Eingabefelder zurücksetzen
+            # Transaktionsliste aktualisieren
+            self.text_box_1.text = updated_transactions
+
+            # Betrag-Textbox leeren
             self.text_box_betrag.text = ""
         else:
             alert(msg, title="Fehler")
