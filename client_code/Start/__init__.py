@@ -7,7 +7,7 @@ class Start(StartTemplate):
         # Standard-Initialisierung
         self.init_components(**properties)
         
-        # Dropdown_SQL mit den 3 Level füllen (kannst du auch im Designer machen)
+        # Dropdown_SQL mit den 3 Level füllen
         self.Dropdown_SQL.items = [
             "Level 1",  # Unsicher
             "Level 2",  # Parameter
@@ -51,6 +51,9 @@ class Start(StartTemplate):
 
         self.current_user_id = None
 
+        # (Neu) Für die Suche
+        self.all_transactions_str = ""  # enthält später das Original-Transaktions-Log
+
     def button_login_click_click(self, **event_args):
         """Wird aufgerufen, wenn der Login-Button geklickt wird."""
         if self.handle_login_click.text == "Login":
@@ -67,13 +70,13 @@ class Start(StartTemplate):
                 )
 
             elif selected_level == "Level 2":
-                # Level 2: Parametergebunden (aber Klartext-Passwort in DB)
+                # Level 2: Parametergebunden
                 success, message, user_name, balance, transactions_str, user_id = anvil.server.call(
                     'safe_login', username, password
                 )
 
             else:  # Level 3
-                # Level 3: Parametergebunden + Passwort als Hash
+                # Level 3: Parametrisierte Queries + Passwort als Hash
                 success, message, user_name, balance, transactions_str, user_id = anvil.server.call(
                     'hashed_login', username, password
                 )
@@ -82,9 +85,12 @@ class Start(StartTemplate):
                 # Login erfolgreich
                 self.current_user_id = user_id
                 self.label_2.text = f"{user_name} - Kontostand: {balance:.2f} EUR"
-                
-                # Transaktionen in text_box_1 anzeigen
-                self.text_box_1.text = transactions_str
+
+                # (WICHTIG) Original-Transaktionen speichern
+                self.all_transactions_str = transactions_str
+
+                # In der TextBox anzeigen
+                self.text_box_1.text = self.all_transactions_str
                 self.text_box_1.visible = True
 
                 # Suche
@@ -115,14 +121,19 @@ class Start(StartTemplate):
             self.reset_to_start()
 
     def Input_User_pressed_enter(self, **event_args):
-        """Suche in den angezeigten Transaktionen (einfaches Filtern)."""
+        """Suche in den angezeigten Transaktionen."""
         if self.Lable_User.text == "Suche:":
             search_text = self.Input_User.text.lower().strip()
-            lines = self.text_box_1.text.split("\n")
-            
-            filtered = [l for l in lines if search_text in l.lower()]
-            self.text_box_1.text = "\n".join(filtered)
-            
+
+            if not search_text:
+                # Wenn keine Sucheingabe, zeige alle Transaktionen wieder
+                self.text_box_1.text = self.all_transactions_str
+            else:
+                # Zeilen aus dem ORIGINAL-String filtern
+                lines = self.all_transactions_str.split("\n")
+                filtered = [line for line in lines if search_text in line.lower()]
+                self.text_box_1.text = "\n".join(filtered)
+
             self.Input_User.text = ""
 
     def Input_Password_pressed_enter(self, **event_args):
@@ -170,7 +181,8 @@ class Start(StartTemplate):
             name_part = self.label_2.text.split(" - ")[0]
             self.label_2.text = f"{name_part} - Kontostand: {new_balance:.2f} EUR"
 
-            # Transaktionsliste aktualisieren
+            # (WICHTIG) Auch den Original-String updaten, damit die Suche weiter korrekt funktioniert
+            self.all_transactions_str = updated_transactions
             self.text_box_1.text = updated_transactions
 
             # Betrag-Textbox leeren
