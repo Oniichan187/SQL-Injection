@@ -37,6 +37,7 @@ class Start(StartTemplate):
         self.Lable_User.text = "Benutzername:"
         self.Input_User.text = ""
         self.Input_Password.text = ""
+        self.label_5.visible = False
 
         self.Label_Password.visible = True
         self.Input_Password.visible = True
@@ -94,6 +95,7 @@ class Start(StartTemplate):
                 # Verstecke Passwort-Felder
                 self.Label_Password.visible = False
                 self.Input_Password.visible = False
+                self.label_5.visible = True
 
                 # Button-Text auf Logout
                 self.handle_login_click.text = "Logout"

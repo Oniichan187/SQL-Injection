@@ -30,6 +30,10 @@ components:
     name: Input_Password
     properties: {hide_text: false}
     type: TextBox
+  - layout_properties: {grid_position: 'CYQXSE,VMEJWY CARPRJ,NQBHQE'}
+    name: label_5
+    properties: {font_size: 16, text: 'Transaktionen:', underline: true}
+    type: Label
   - layout_properties: {grid_position: 'CYQXSE,JMUSPY IHARBU,UDTOTR'}
     name: label_4
     properties: {font_size: 16, text: 'SQL Injection Level:'}
@@ -60,7 +64,6 @@ components:
       properties: {}
       type: TextBox
     - event_bindings: {click: make_transaktion_click}
-      layout_properties: {}
       name: make_transaktion
       properties: {font_size: 16, text: Buchen}
       type: Button
