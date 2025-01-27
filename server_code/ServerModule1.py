@@ -22,10 +22,12 @@ def get_other_users(current_user_id):
 def unsafe_login(username, password):
     """
     Level 1: Keine Absicherung (unsicher).
+    Erlaubt SQL-Injection durch String-Konkatenation.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Achtung: Hier wird direkt in den SQL-String eingesetzt => unsicher!
         query = f"SELECT * FROM User WHERE Email = '{username}' AND Password = '{password}'"
         cursor.execute(query)
         user = cursor.fetchone()
@@ -47,7 +49,7 @@ def unsafe_login(username, password):
 def safe_login(username, password):
     """
     Level 2: Parametrisierte Queries (sicherer gegen SQL-Injection),
-    Passwörter liegen noch unverschlüsselt in der DB.
+    Passwörter liegen noch im Klartext in der DB.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -73,27 +75,24 @@ def safe_login(username, password):
 def hashed_login(username, password):
     """
     Level 3: Parametrisierte Queries + Passwort-Hashing.
-    Hier werden Passwörter in der DB nur als Hash gespeichert.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Zuerst den Datensatz anhand der Email holen (parametrisierte Query)
+        # E-Mail prüfen
         cursor.execute("SELECT * FROM User WHERE Email = ?", (username,))
         user = cursor.fetchone()
         if not user:
             return (False, "Ungültige Anmeldedaten (Level 3)", None, None, None, None)
 
-        # wir nehmen an, dass in 'Password' jetzt der Hash liegt
         user_id         = user[0]
         user_name       = user[1]
-        stored_hash     = user[6]
+        stored_hash     = user[6]  # in der DB gespeicherter Passwort-Hash
         balance         = user[4]
 
-        # Den SHA256-Hash des eingegebenen Passworts berechnen
+        # Eingegebenes Passwort hashen
         entered_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-        # Vergleichen mit dem gespeicherten Hash
         if entered_hash == stored_hash:
             transactions_str = get_user_transactions(cursor, user_id)
             return (True, "Login erfolgreich (Level 3: Hash)", user_name, balance, transactions_str, user_id)
@@ -106,6 +105,9 @@ def hashed_login(username, password):
         conn.close()
 
 def get_user_transactions(cursor, user_id):
+    """
+    Gibt die Transaktionen für einen bestimmten User als zusammenhängenden String zurück.
+    """
     cursor.execute("""
         SELECT t.Date,
                s.Name AS SenderName,
@@ -161,7 +163,7 @@ def transfer_money(sender_id, receiver_id, amount):
         cursor.execute("UPDATE User SET Balance = ? WHERE UID = ?", (new_sender_balance, sender_id))
         cursor.execute("UPDATE User SET Balance = ? WHERE UID = ?", (new_receiver_balance, receiver_id))
 
-        # Neue Transaktion anlegen (Tabelle Transactions)
+        # Neue Transaktion anlegen
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cursor.execute("""
             INSERT INTO Transactions (Date, SenderIBAN, ReceiverIBAN, Amount)
@@ -169,13 +171,12 @@ def transfer_money(sender_id, receiver_id, amount):
         """, (now_str, sender_iban, receiver_iban, amount))
         transaction_id = cursor.lastrowid
 
-        # Eintrag in User_Transactions (Sender)
+        # Verknüpfung mit User_Transactions (Sender + Empfänger)
         cursor.execute("""
             INSERT INTO User_Transactions (UserID, TransactionID, Role)
             VALUES (?, ?, 'Sender')
         """, (sender_id, transaction_id))
 
-        # Eintrag in User_Transactions (Empfänger)
         cursor.execute("""
             INSERT INTO User_Transactions (UserID, TransactionID, Role)
             VALUES (?, ?, 'Receiver')
@@ -183,7 +184,7 @@ def transfer_money(sender_id, receiver_id, amount):
 
         conn.commit()
 
-        # Aktualisierte Transaktionen des Senders
+        # Aktualisierte Transaktionen des Senders holen
         updated_transactions_str = get_user_transactions(cursor, sender_id)
 
         return (True, "Überweisung erfolgreich", new_sender_balance, updated_transactions_str)
