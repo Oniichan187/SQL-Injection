@@ -5,18 +5,10 @@ from datetime import datetime
 import hashlib
 
 def get_db_connection():
-    """
-    Gibt eine DB-Verbindung zurück. 'bank_transactions.db' muss als
-    Data-File in Anvil hinterlegt sein.
-    """
     return sqlite3.connect(data_files['bank_transactions.db'])
 
 @anvil.server.callable
 def get_other_users(current_user_id):
-    """
-    Liefert eine Liste aller anderen User (UID != current_user_id).
-    Format für Anvil-Dropdown: [(Name, UID), (Name2, UID2), ...].
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -30,13 +22,10 @@ def get_other_users(current_user_id):
 def unsafe_login(username, password):
     """
     Level 1: Keine Absicherung (unsicher).
-    Hier werden die Userdaten direkt in den SQL-String eingesetzt.
-    Extrem anfällig für SQL-Injection.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Beispiel für anfälliges Query
         query = f"SELECT * FROM User WHERE Email = '{username}' AND Password = '{password}'"
         cursor.execute(query)
         user = cursor.fetchone()
@@ -58,7 +47,7 @@ def unsafe_login(username, password):
 def safe_login(username, password):
     """
     Level 2: Parametrisierte Queries (sicherer gegen SQL-Injection),
-    aber die Passwörter liegen noch unverschlüsselt in der DB.
+    Passwörter liegen noch unverschlüsselt in der DB.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -84,8 +73,7 @@ def safe_login(username, password):
 def hashed_login(username, password):
     """
     Level 3: Parametrisierte Queries + Passwort-Hashing.
-    Hier werden Passwörter in der DB nur als Hash gespeichert (z.B. SHA256).
-    (In Wirklichkeit solltest du bcrypt / argon2 / pbkdf2 mit Salt nutzen!)
+    Hier werden Passwörter in der DB nur als Hash gespeichert.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -96,20 +84,17 @@ def hashed_login(username, password):
         if not user:
             return (False, "Ungültige Anmeldedaten (Level 3)", None, None, None, None)
 
-        # user = (UID, Name, Email, Age, Balance, IBAN, PasswordHash)
         # wir nehmen an, dass in 'Password' jetzt der Hash liegt
         user_id         = user[0]
         user_name       = user[1]
-        stored_hash     = user[6]  # Angenommen: Spalte 7 = gehashte Password
+        stored_hash     = user[6]
         balance         = user[4]
 
         # Den SHA256-Hash des eingegebenen Passworts berechnen
-        # In echt: bcrypt etc.
         entered_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
 
         # Vergleichen mit dem gespeicherten Hash
         if entered_hash == stored_hash:
-            # Login ok
             transactions_str = get_user_transactions(cursor, user_id)
             return (True, "Login erfolgreich (Level 3: Hash)", user_name, balance, transactions_str, user_id)
         else:
@@ -121,9 +106,6 @@ def hashed_login(username, password):
         conn.close()
 
 def get_user_transactions(cursor, user_id):
-    """
-    Liest alle Transaktionen eines Nutzers aus und formatiert sie als String.
-    """
     cursor.execute("""
         SELECT t.Date,
                s.Name AS SenderName,
@@ -144,9 +126,6 @@ def get_user_transactions(cursor, user_id):
 
 @anvil.server.callable
 def transfer_money(sender_id, receiver_id, amount):
-    """
-    Führt eine Überweisung durch, aktualisiert Kontostände + Transaktionstabellen.
-    """
     if amount <= 0:
         return (False, "Betrag muss positiv sein!", None, None)
 
