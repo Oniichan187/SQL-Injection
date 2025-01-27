@@ -28,7 +28,7 @@ class Start(StartTemplate):
 
     def reset_to_start(self):
         """Setzt die UI in den Ausgangszustand (z.B. nach Logout)."""
-        self.label_2.text = "Bank"
+        self.label_2.text = "Diamond Financial Holdings"
         self.handle_login_click.text = "Login"
         self.text_box_1.visible = False
         self.text_box_1.text = ""
