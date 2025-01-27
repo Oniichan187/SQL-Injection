@@ -2,7 +2,7 @@ import sqlite3
 import anvil.server
 from anvil.files import data_files
 from datetime import datetime
-import hashlib  # Nur für das Hashing-Beispiel (Level 3)
+import hashlib
 
 def get_db_connection():
     """
