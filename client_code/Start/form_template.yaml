@@ -1,4 +1,12 @@
 components:
+- layout_properties: {slot: nav-right}
+  name: navbar_links
+  properties: {}
+  type: FlowPanel
+- layout_properties: {slot: title}
+  name: Bank
+  properties: {text: Diamond Financial Holdings}
+  type: Label
 - components:
   - components:
     - name: image_1
@@ -84,14 +92,6 @@ components:
   name: content_panel
   properties: {col_widths: '{"VMEJWY":40,"JMUSPY":20,"QTWPAJ":10,"WXBTUG":50,"KZOOQB":10,"CAZAUD":50}', visible: true}
   type: ColumnPanel
-- layout_properties: {slot: nav-right}
-  name: navbar_links
-  properties: {}
-  type: FlowPanel
-- layout_properties: {slot: title}
-  name: Bank
-  properties: {text: Diamond Financial Holdings}
-  type: Label
 container:
   properties: {html: '@theme:standard-page.html'}
   type: HtmlTemplate
