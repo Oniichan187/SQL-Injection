@@ -20,6 +20,14 @@ components:
     name: flow_panel_1
     properties: {align: center}
     type: FlowPanel
+  - layout_properties: {grid_position: 'XGAWPA,LVSETB'}
+    name: label_AccountNo
+    properties: {}
+    type: Label
+  - layout_properties: {grid_position: 'OCNVFS,BYNYVV'}
+    name: label_AccountData
+    properties: {}
+    type: Label
   - layout_properties: {grid_position: 'EYUUAF,BFIMAK'}
     name: label_level3_info
     properties: {}
